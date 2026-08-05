@@ -561,3 +561,5 @@ LowHopBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
+-- Add a Sidebar Button for the Server Tab
+CreateTabButton("🌐 Servers", ServerTab)
