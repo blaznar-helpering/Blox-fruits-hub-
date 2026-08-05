@@ -399,7 +399,8 @@ UpdateBtn.MouseButton1Click:Connect(function()
     task.spawn(function()
         local success, response = pcall(function()
             -- Replace this URL with your raw GitHub / Pastebin link whenever you update code externally!
-            return game:HttpGet("https://raw.githubusercontent.com/YourUsername/YourRepo/main/script.lua")
+            return game:HttpGet("https://raw.githubusercontent.com/blaznar-helpering/Blox-fruits-hub-/refs/heads/main/hub.lua")
+       
         end)
         if success and response and #response > 50 then
             StatusLabel.Text = "✅ New update found! Executing update..."
