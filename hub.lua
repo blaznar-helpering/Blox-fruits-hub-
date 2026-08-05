@@ -563,3 +563,4 @@ end)
 
 -- Add a Sidebar Button for the Server Tab
 CreateTabButton("🌐 Servers", ServerTab)
+EventStatus.Position = UDim2.new(0, 10, 0, 45)
