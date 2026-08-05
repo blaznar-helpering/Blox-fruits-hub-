@@ -47,7 +47,7 @@ local SearchDatabase = {
 
 -- 2. GUI CONTAINER
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MasterHubUI"
+ScreenGui.Name = "DoomHubUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = PlayerGui
 
