@@ -445,3 +445,119 @@ CreateTabButton("⚙️ Utilities", UtilTab)
 CreateTabButton("💾 Settings", SettingsTab)
 
 print("Blox Fruits Master Hub v2.0 Loaded with Persistent Config & Updater!")
+
+
+
+
+-- ============================================
+-- 🌌 SERVERS & EVENTS TAB
+-- ============================================
+local ServerTab = Instance.new("Frame")
+ServerTab.Name = "ServerTab"
+ServerTab.Size = UDim2.new(1, -140, 1, -50)
+ServerTab.Position = UDim2.new(0, 135, 0, 45)
+ServerTab.BackgroundTransparency = 1
+ServerTab.Visible = false
+ServerTab.Parent = MainFrame
+
+-- Status Label for Events
+local EventStatus = Instance.new("TextLabel")
+EventStatus.Size = UDim2.new(1, -20, 0, 50)
+EventStatus.Position = UDim2.new(0, 10, 0, 10)
+EventStatus.BackgroundColor3 = Color3.fromRGB(22, 25, 36)
+EventStatus.Text = "🔍 Checking current server events..."
+EventStatus.TextColor3 = Color3.fromRGB(255, 255, 255)
+EventStatus.Font = Enum.Font.GothamMedium
+EventStatus.TextSize = 12
+EventStatus.Parent = ServerTab
+
+local EventCorner = Instance.new("UICorner")
+EventCorner.CornerRadius = UDim.new(0, 6)
+EventCorner.Parent = EventStatus
+
+-- Check Server Events Function
+local function CheckEvents()
+    local lighting = game:GetService("Lighting")
+    local statusText = "⚡ Current Server Status:\n"
+    
+    if lighting:FindFirstChild("Sky") and lighting.Sky.SkyboxTxt:find("moon") or lighting.ClockTime >= 18 or lighting.ClockTime <= 5 then
+        statusText = statusText .. "🌕 Night Time / Moon active! "
+    else
+        statusText = statusText .. "☀️ Daytime. "
+    end
+    
+    EventStatus.Text = statusText
+end
+
+task.spawn(function()
+    while task.wait(5) do
+        pcall(CheckEvents)
+    end
+end)
+
+-- Button 1: Fast Server Hop
+local HopBtn = Instance.new("TextButton")
+HopBtn.Size = UDim2.new(1, -20, 0, 40)
+HopBtn.Position = UDim2.new(0, 10, 0, 70)
+HopBtn.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+HopBtn.Text = "🔀 Fast Server Hop"
+HopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+HopBtn.Font = Enum.Font.GothamBold
+HopBtn.TextSize = 13
+HopBtn.Parent = ServerTab
+
+local HopCorner = Instance.new("UICorner")
+HopCorner.CornerRadius = UDim.new(0, 5)
+HopCorner.Parent = HopBtn
+
+HopBtn.MouseButton1Click:Connect(function()
+    EventStatus.Text = "⏳ Finding a new server..."
+    local TeleportService = game:GetService("TeleportService")
+    local HttpService = game:GetService("HttpService")
+    
+    local success, result = pcall(function()
+        local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")).data
+        for _, server in ipairs(servers) do
+            if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, game.Players.LocalPlayer)
+                break
+            end
+        end
+    end)
+    if not success then
+        EventStatus.Text = "❌ Failed to hop servers. Try again!"
+    end
+end)
+
+-- Button 2: Low Player Server Hop
+local LowHopBtn = Instance.new("TextButton")
+LowHopBtn.Size = UDim2.new(1, -20, 0, 40)
+LowHopBtn.Position = UDim2.new(0, 10, 0, 120)
+LowHopBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+LowHopBtn.Text = "👥 Join Low Player Server"
+LowHopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+LowHopBtn.Font = Enum.Font.GothamBold
+LowHopBtn.TextSize = 13
+LowHopBtn.Parent = ServerTab
+
+local LowHopCorner = Instance.new("UICorner")
+LowHopCorner.CornerRadius = UDim.new(0, 5)
+LowHopCorner.Parent = LowHopBtn
+
+LowHopBtn.MouseButton1Click:Connect(function()
+    EventStatus.Text = "⏳ Searching for a quiet server..."
+    local TeleportService = game:GetService("TeleportService")
+    local HttpService = game:GetService("HttpService")
+    
+    pcall(function()
+        local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")).data
+        table.sort(servers, function(a, b) return a.playing < b.playing end)
+        for _, server in ipairs(servers) do
+            if server.playing > 1 and server.id ~= game.JobId then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, game.Players.LocalPlayer)
+                break
+            end
+        end
+    end)
+end)
+
