@@ -196,6 +196,67 @@ local function resetHardcore()
     for _, b in ipairs(bosses) do b.hp = b.maxHp end
     updateUI()
 end
+-- ====================================================================
+-- 1. CHARACTER CLASS SELECTION SYSTEM
+-- ====================================================================
+local playerClass = "Warrior" -- Default selection
+
+local classFrame = Instance.new("Frame")
+classFrame.Size = UDim2.new(1, -20, 0, 35)
+classFrame.Position = UDim2.new(0, 10, 0, 10)
+classFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+classFrame.Parent = frames["gather"] -- Adjust to your frame name if needed
+
+local classes = {"Warrior", "Mage", "Ranger", "Summoner"}
+for i, className in ipairs(classes) do
+    local cBtn = Instance.new("TextButton")
+    cBtn.Size = UDim2.new(0.23, 0, 0, 25)
+    cBtn.Position = UDim2.new(0.02 + (i - 1) * 0.24, 0, 0, 5)
+    cBtn.BackgroundColor3 = (className == "Warrior") and Color3.fromRGB(60, 180, 75) or Color3.fromRGB(50, 50, 70)
+    cBtn.Text = className
+    cBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    cBtn.Font = Enum.Font.GothamBold
+    cBtn.TextSize = 9
+    cBtn.Parent = classFrame
+
+    local uic = Instance.new("UICorner")
+    uic.CornerRadius = UDim.new(0, 4)
+    uic.Parent = cBtn
+
+    cBtn.MouseButton1Click:Connect(function()
+        playerClass = className
+        for _, btn in ipairs(classFrame:GetChildren()) do
+            if btn:IsA("TextButton") then
+                btn.BackgroundColor3 = (btn.Text == playerClass) and Color3.fromRGB(60, 180, 75) or Color3.fromRGB(50, 50, 70)
+            end
+        end
+    end)
+end
+
+-- ====================================================================
+-- 2. MULTIPLAYER SERVER BOSS SPAWNER
+-- ====================================================================
+local bossBtn = Instance.new("TextButton")
+bossBtn.Size = UDim2.new(1, -20, 0, 30)
+bossBtn.Position = UDim2.new(0, 10, 0, 55)
+bossBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+bossBtn.Text = "👁️ SPAWN EYE OF CTHULHU (SERVER)"
+bossBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+bossBtn.Font = Enum.Font.GothamBold
+bossBtn.TextSize = 10
+bossBtn.Parent = frames["gather"] -- Adjust to your frame name if needed
+
+local bossUic = Instance.new("UICorner")
+bossUic.CornerRadius = UDim.new(0, 4)
+bossUic.Parent = bossBtn
+
+bossBtn.MouseButton1Click:Connect(function()
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Terraria Boss Event!",
+        Text = game.Players.LocalPlayer.Name .. " (" .. playerClass .. ") summoned Eye of Cthulhu!",
+        Duration = 5
+    })
+end)
 
 -- ==================== TAB 1: COMBAT & BOSS ARENA ====================
 local bossCard = Instance.new("Frame")
