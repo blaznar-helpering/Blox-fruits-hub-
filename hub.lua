@@ -325,7 +325,6 @@ end
 createGatherRow("🌲 Chop Trees (+3 Wood)", Color3.fromRGB(120, 70, 20), 35, "wood", 3)
 createGatherRow("🪨 Mine Stone Quarry (+3 Stone)", Color3.fromRGB(90, 100, 110), 80, "stone", 3)
 createGatherRow("⛏️ Dig Iron Vein (+2 Iron Ore)", Color3.fromRGB(70, 80, 95), 125, "ironOre", 2)
-createGatherRow("🪙 Mine Gold Vein (+1 Gold Ore)", Color3.fromRGB(180, 140, 20), 170, "goldOre", 1)
 -- Tap Counter for Gold Bars (100 Taps = 1 Gold Bar)
 local tapCount = 0
 local tapBtn = Instance.new("TextButton")
