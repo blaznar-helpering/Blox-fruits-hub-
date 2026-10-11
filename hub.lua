@@ -328,7 +328,7 @@ createGatherRow("⛏️ Dig Iron Vein (+2 Iron Ore)", Color3.fromRGB(70, 80, 95)
 -- Tap Counter for Gold Bars (100 Taps = 1 Gold Bar)
 local tapCount = 0
 local tapBtn = Instance.new("TextButton")
-tapBtn.Size = UDim2.new(1, 0, 0, 35)
+tapBtn.Position = UDim2.new(0, 0, 0, 170)
 tapBtn.Position = UDim2.new(0, 0, 0, 215)
 tapBtn.BackgroundColor3 = Color3.fromRGB(220, 160, 20)
 tapBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
