@@ -326,6 +326,30 @@ createGatherRow("🌲 Chop Trees (+3 Wood)", Color3.fromRGB(120, 70, 20), 35, "w
 createGatherRow("🪨 Mine Stone Quarry (+3 Stone)", Color3.fromRGB(90, 100, 110), 80, "stone", 3)
 createGatherRow("⛏️ Dig Iron Vein (+2 Iron Ore)", Color3.fromRGB(70, 80, 95), 125, "ironOre", 2)
 createGatherRow("🪙 Mine Gold Vein (+1 Gold Ore)", Color3.fromRGB(180, 140, 20), 170, "goldOre", 1)
+-- Tap Counter for Gold Bars (100 Taps = 1 Gold Bar)
+local tapCount = 0
+local tapBtn = Instance.new("TextButton")
+tapBtn.Size = UDim2.new(1, 0, 0, 35)
+tapBtn.Position = UDim2.new(0, 0, 0, 215)
+tapBtn.BackgroundColor3 = Color3.fromRGB(220, 160, 20)
+tapBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+tapBtn.Text = "🪙 Tap For Gold! (0 / 100 Taps)"
+tapBtn.Font = Enum.Font.GothamBold
+tapBtn.TextSize = 10
+tapBtn.Parent = frames["gather"]
+local tbC = Instance.new("UICorner") tbC.CornerRadius = UDim.new(0, 6) tbC.Parent = tapBtn
+
+tapBtn.MouseButton1Click:Connect(function()
+    tapCount = tapCount + 1
+    if tapCount >= 100 then
+        tapCount = 0
+        resources.goldBar = resources.goldBar + 1
+        tapBtn.Text = "🪙 Tap For Gold! (0 / 100 Taps) - +1 BAR!"
+    else
+        tapBtn.Text = string.format("🪙 Tap For Gold! (%d / 100 Taps)", tapCount)
+    end
+    updateUI()
+end)
 
 -- ==================== TAB 3: 2D BUILDING GRID ====================
 local tilePalette = {"Dirt", "Wood", "Stone", "Brick"}
