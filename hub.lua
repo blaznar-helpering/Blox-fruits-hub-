@@ -437,7 +437,7 @@ addCraftRecipe("⚡ Craft Terra Blade (250 DPS)", "10 Demonite Bars, 10 Hallowed
 
 addCraftRecipe("🌟 Craft Zenith (1000 DPS)", "50 Gold Bars, 50 Demonite Bars", 
     function() return resources.goldBar >= 50 and resources.demoniteBar >= 50 end, 
-    function() resources.goldBar = resources.goldBar - 50 resources.demoniteBar = resources.demoniteBar - 50 equippedWeapon = "Zenith" weaponDps = 1000 end
+    function() resources.goldBar = resources.goldBar - 50 resources.demoniteBar = resources.demoniteBar - 50 equippedWeapon = "Zenith" weaponDps = 1000 end)
   
 addCraftRecipe("🛡️ Craft Ankh Shield (+50% Max HP)", "20 Iron Bars, 10 Gold Bars", 
     function() return resources.ironBar >= 20 and resources.goldBar >= 10 end, 
