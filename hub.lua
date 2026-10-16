@@ -2,7 +2,9 @@
     Windows 11 Terraria 2D Master Sandbox Edition
     Designed for GitHub Hosting & Delta Execution
 ]]--
-
+-- ===== ADMIN GATE =====
+local ADMIN_IDS = { 8440869752 }
+local isAdmin = table.find(ADMIN_IDS, player.UserId) ~= nil
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
@@ -196,6 +198,46 @@ local function resetHardcore()
     for _, b in ipairs(bosses) do b.hp = b.maxHp end
     updateUI()
 end
+-- ===== CHAT SYSTEM =====
+local chatBox = Instance.new("ScrollingFrame")
+chatBox.Size = UDim2.new(1, -20, 0, 60)
+chatBox.Position = UDim2.new(0, 10, 1, -70)
+chatBox.BackgroundColor3 = Color3.fromRGB(10, 12, 16)
+chatBox.BorderSizePixel = 0
+chatBox.CanvasSize = UDim2.new(0, 0, 0, 0)
+chatBox.ScrollBarThickness = 3
+chatBox.Parent = window
+local chatCorner = Instance.new("UICorner") chatCorner.CornerRadius = UDim.new(0, 4) chatCorner.Parent = chatBox
+
+local chatLayout = Instance.new("UIListLayout")
+chatLayout.SortOrder = Enum.SortOrder.LayoutOrder
+chatLayout.Padding = UDim.new(0, 2)
+chatLayout.Parent = chatBox
+
+local chatCount = 0
+function log(msg, color)
+    chatCount = chatCount + 1
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -6, 0, 14)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = color or Color3.fromRGB(200, 200, 200)
+    lbl.Text = "[" .. os.date("%H:%M") .. "] " .. msg
+    lbl.Font = Enum.Font.Code
+    lbl.TextSize = 9
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.LayoutOrder = chatCount
+    lbl.Parent = chatBox
+    chatBox.CanvasSize = UDim2.new(0, 0, 0, chatCount * 16)
+    task.defer(function()
+        chatBox.CanvasPosition = Vector2.new(0, math.max(0, chatCount * 16 - chatBox.AbsoluteSize.Y))
+    end)
+    if chatCount > 50 then
+        local oldest = chatBox:FindFirstChildOfClass("TextLabel")
+        if oldest and oldest.LayoutOrder == 1 then oldest:Destroy() end
+    end
+end
+
+log("System ready.", Color3.fromRGB(100, 255, 150))
 -- ====================================================================
 -- 1. CHARACTER CLASS SELECTION SYSTEM
 -- ====================================================================
@@ -594,5 +636,110 @@ addNpcCard("Merchant", "Shop Items\nCost: 20 Wood", 20)
 addNpcCard("Nurse", "Instant Heal\nCost: 30 Wood", 30)
 addNpcCard("Arms Dealer", "Guns & Ammo\nCost: 40 Wood", 40)
 addNpcCard("Dryad", "+20% Max HP\nCost: 50 Wood", 50)
+-- ===== ADMIN TAB =====
+if isAdmin then
+    -- Create the Admin tab button dynamically
+    local adminBtn = Instance.new("TextButton")
+    adminBtn.Size = UDim2.new(0, 62, 1, 0)
+    adminBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 20)
+    adminBtn.TextColor3 = Color3.fromRGB(255, 200, 80)
+    adminBtn.Text = "👑 Admin"
+    adminBtn.Font = Enum.Font.GothamBold
+    adminBtn.TextSize = 8
+    adminBtn.Parent = tabContainer
+    local abC = Instance.new("UICorner") abC.CornerRadius = UDim.new(0, 4) abC.Parent = adminBtn
 
+    -- Create the Admin frame
+    local adminFrame = Instance.new("Frame")
+    adminFrame.Size = UDim2.new(1, -20, 0, 250)
+    adminFrame.Position = UDim2.new(0, 10, 0, 90)
+    adminFrame.BackgroundTransparency = 1
+    adminFrame.Visible = false
+    adminFrame.Parent = window
+    frames["admin"] = adminFrame
+
+    adminBtn.MouseButton1Click:Connect(function()
+        for _, f in pairs(frames) do f.Visible = false end
+        adminFrame.Visible = true
+    end)
+
+    -- Header
+    local hdr = Instance.new("TextLabel")
+    hdr.Size = UDim2.new(1, 0, 0, 18)
+    hdr.BackgroundTransparency = 1
+    hdr.TextColor3 = Color3.fromRGB(255, 200, 80)
+    hdr.Text = "👑 ADMIN ONLY — " .. player.Name
+    hdr.Font = Enum.Font.GothamBold
+    hdr.TextSize = 10
+    hdr.Parent = adminFrame
+
+    -- Boss grid (auto-generated from bosses table)
+    local bossGrid = Instance.new("Frame")
+    bossGrid.Size = UDim2.new(1, 0, 0, 180)
+    bossGrid.Position = UDim2.new(0, 0, 0, 22)
+    bossGrid.BackgroundTransparency = 1
+    bossGrid.Parent = adminFrame
+
+    local bgLayout = Instance.new("UIGridLayout")
+    bgLayout.CellSize = UDim2.new(0.49, -3, 0, 28)
+    bgLayout.CellPadding = UDim2.new(0, 4, 0, 4)
+    bgLayout.Parent = bossGrid
+
+    for i, boss in ipairs(bosses) do
+        local b = Instance.new("TextButton")
+        b.BackgroundColor3 = boss.color
+        b.TextColor3 = Color3.fromRGB(255, 255, 255)
+        b.Text = boss.name
+        b.Font = Enum.Font.GothamBold
+        b.TextSize = 8
+        b.Parent = bossGrid
+        local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 4) c.Parent = b
+
+        b.MouseButton1Click:Connect(function()
+            if log then log("👑 [ADMIN] Summoned " .. boss.name .. "!", Color3.fromRGB(255, 200, 80)) end
+            -- Red screen flash
+            local flash = Instance.new("Frame")
+            flash.Size = UDim2.new(1, 0, 1, 0)
+            flash.BackgroundColor3 = boss.color
+            flash.BackgroundTransparency = 0.5
+            flash.BorderSizePixel = 0
+            flash.ZIndex = 999
+            flash.Parent = screenGui
+            TweenService:Create(flash, TweenInfo.new(0.6), {BackgroundTransparency = 1}):Play()
+            task.delay(0.7, function() flash:Destroy() end)
+        end)
+    end
+
+    -- KILL ALL button
+    local killAllBtn = Instance.new("TextButton")
+    killAllBtn.Size = UDim2.new(1, 0, 0, 30)
+    killAllBtn.Position = UDim2.new(0, 0, 0, 208)
+    killAllBtn.BackgroundColor3 = Color3.fromRGB(180, 30, 30)
+    killAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    killAllBtn.Text = "☠️ KILL ALL BOSSES"
+    killAllBtn.Font = Enum.Font.GothamBold
+    killAllBtn.TextSize = 10
+    killAllBtn.Parent = adminFrame
+    local kaC = Instance.new("UICorner") kaC.CornerRadius = UDim.new(0, 4) kaC.Parent = killAllBtn
+
+    killAllBtn.MouseButton1Click:Connect(function()
+        for _, bx in ipairs(bosses) do
+            local xpGain = bx.xp
+            pXp = pXp + xpGain
+            resources.coins = resources.coins + math.floor(xpGain * 1.5)
+            bx.hp = bx.maxHp
+        end
+        while pXp >= pMaxXp do
+            pXp = pXp - pMaxXp
+            pLvl = pLvl + 1
+            pMaxXp = math.floor(pMaxXp * 1.5)
+            pMaxHp = pMaxHp + 25
+            pHp = pMaxHp
+        end
+        if log then log("👑 [ADMIN] KILL ALL — every boss defeated!", Color3.fromRGB(255, 80, 80)) end
+        if updateUI then updateUI() end
+        if saveGame then saveGame() end
+    end)
+end
+local TweenService = game:GetService("TweenService")
 print("Windows 11 Master Terraria Script Loaded Successfully!")
