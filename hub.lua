@@ -2,13 +2,15 @@
     Windows 11 Terraria 2D Master Sandbox Edition
     Designed for GitHub Hosting & Delta Execution
 ]]--
--- ===== ADMIN GATE =====
-local ADMIN_IDS = { 8440869752 }
-local isAdmin = table.find(ADMIN_IDS, player.UserId) ~= nil
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+
+-- ===== ADMIN GATE =====
+local ADMIN_IDS = { 8440869752 }
+local isAdmin = table.find(ADMIN_IDS, player.UserId) ~= nil
+
 
 -- Clean duplicate execution GUIs
 for _, child in ipairs(playerGui:GetChildren()) do
@@ -26,7 +28,7 @@ screenGui.Parent = playerGui
 
 -- Main Draggable Window Frame
 local window = Instance.new("Frame")
-window.Size = UDim2.new(0, 420, 0, 350)
+window.Size = UDim2.new(0, 420, 0, 400)
 window.Position = UDim2.new(0.5, -210, 0.15, 0)
 window.BackgroundColor3 = Color3.fromRGB(20, 24, 32)
 window.Parent = screenGui
@@ -200,8 +202,8 @@ local function resetHardcore()
 end
 -- ===== CHAT SYSTEM =====
 local chatBox = Instance.new("ScrollingFrame")
-chatBox.Size = UDim2.new(1, -20, 0, 60)
-chatBox.Position = UDim2.new(0, 10, 1, -70)
+chatBox.Size = UDim2.new(1, -20, 0, 55)
+chatBox.Position = UDim2.new(0, 10, 1, -65)
 chatBox.BackgroundColor3 = Color3.fromRGB(10, 12, 16)
 chatBox.BorderSizePixel = 0
 chatBox.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -425,14 +427,14 @@ local function createGatherRow(name, color, yPos, resourceKey, yield)
     end)
 end
 
-createGatherRow("🌲 Chop Trees (+3 Wood)", ..., 100, ...)
-createGatherRow("🪨 Mine Stone Quarry (+3 Stone)", ..., 145, ...)
-createGatherRow("⛏️ Dig Iron Vein (+2 Iron Ore)", ..., 190, ...)
+createGatherRow("🌲 Chop Trees (+3 Wood)", Color3.fromRGB(120, 70, 20), 100, "wood", 3)
+createGatherRow("🪨 Mine Stone Quarry (+3 Stone)", Color3.fromRGB(90, 100, 110), 130, "stone", 3)
+createGatherRow("⛏️ Dig Iron Vein (+2 Iron Ore)", Color3.fromRGB(70, 80, 95), 160, "ironOre", 2)
 -- Tap Counter for Gold Bars (100 Taps = 1 Gold Bar)
 local tapCount = 0
 local tapBtn = Instance.new("TextButton")
-tapBtn.Position = UDim2.new(0, 0, 0, 170)
-tapBtn.BackgroundColor3 = Color3.fromRGB(220, 160, 20)
+tapBtn.Size = UDim2.new(1, 0, 0, 35)
+tapBtn.Position = UDim2.new(0, 0, 0, 195)  -- below the 3 gather rows
 tapBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 tapBtn.Text = "🪙 Tap For Gold! (0 / 100 Taps)"
 tapBtn.Font = Enum.Font.GothamBold
@@ -638,7 +640,6 @@ addNpcCard("Arms Dealer", "Guns & Ammo\nCost: 40 Wood", 40)
 addNpcCard("Dryad", "+20% Max HP\nCost: 50 Wood", 50)
 -- ===== ADMIN TAB =====
 if isAdmin then
-    -- Create the Admin tab button dynamically
     local adminBtn = Instance.new("TextButton")
     adminBtn.Size = UDim2.new(0, 62, 1, 0)
     adminBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 20)
@@ -649,9 +650,8 @@ if isAdmin then
     adminBtn.Parent = tabContainer
     local abC = Instance.new("UICorner") abC.CornerRadius = UDim.new(0, 4) abC.Parent = adminBtn
 
-    -- Create the Admin frame
     local adminFrame = Instance.new("Frame")
-    adminFrame.Size = UDim2.new(1, -20, 0, 250)
+    adminFrame.Size = UDim2.new(1, -20, 0, 200)
     adminFrame.Position = UDim2.new(0, 10, 0, 90)
     adminFrame.BackgroundTransparency = 1
     adminFrame.Visible = false
@@ -663,20 +663,18 @@ if isAdmin then
         adminFrame.Visible = true
     end)
 
-    -- Header
     local hdr = Instance.new("TextLabel")
-    hdr.Size = UDim2.new(1, 0, 0, 18)
+    hdr.Size = UDim2.new(1, 0, 0, 16)
     hdr.BackgroundTransparency = 1
     hdr.TextColor3 = Color3.fromRGB(255, 200, 80)
-    hdr.Text = "👑 ADMIN ONLY — " .. player.Name
+    hdr.Text = "👑 ADMIN — " .. player.Name
     hdr.Font = Enum.Font.GothamBold
     hdr.TextSize = 10
     hdr.Parent = adminFrame
 
-    -- Boss grid (auto-generated from bosses table)
     local bossGrid = Instance.new("Frame")
-    bossGrid.Size = UDim2.new(1, 0, 0, 180)
-    bossGrid.Position = UDim2.new(0, 0, 0, 22)
+    bossGrid.Size = UDim2.new(1, 0, 0, 150)
+    bossGrid.Position = UDim2.new(0, 0, 0, 20)
     bossGrid.BackgroundTransparency = 1
     bossGrid.Parent = adminFrame
 
@@ -696,8 +694,7 @@ if isAdmin then
         local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 4) c.Parent = b
 
         b.MouseButton1Click:Connect(function()
-            if log then log("👑 [ADMIN] Summoned " .. boss.name .. "!", Color3.fromRGB(255, 200, 80)) end
-            -- Red screen flash
+            log("👑 [ADMIN] Summoned " .. boss.name .. "!", Color3.fromRGB(255, 200, 80))
             local flash = Instance.new("Frame")
             flash.Size = UDim2.new(1, 0, 1, 0)
             flash.BackgroundColor3 = boss.color
@@ -705,15 +702,14 @@ if isAdmin then
             flash.BorderSizePixel = 0
             flash.ZIndex = 999
             flash.Parent = screenGui
-            TweenService:Create(flash, TweenInfo.new(0.6), {BackgroundTransparency = 1}):Play()
+            game:GetService("TweenService"):Create(flash, TweenInfo.new(0.6), {BackgroundTransparency = 1}):Play()
             task.delay(0.7, function() flash:Destroy() end)
         end)
     end
 
-    -- KILL ALL button
     local killAllBtn = Instance.new("TextButton")
-    killAllBtn.Size = UDim2.new(1, 0, 0, 30)
-    killAllBtn.Position = UDim2.new(0, 0, 0, 208)
+    killAllBtn.Size = UDim2.new(1, 0, 0, 28)
+    killAllBtn.Position = UDim2.new(0, 0, 0, 172)
     killAllBtn.BackgroundColor3 = Color3.fromRGB(180, 30, 30)
     killAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     killAllBtn.Text = "☠️ KILL ALL BOSSES"
@@ -724,9 +720,8 @@ if isAdmin then
 
     killAllBtn.MouseButton1Click:Connect(function()
         for _, bx in ipairs(bosses) do
-            local xpGain = bx.xp
-            pXp = pXp + xpGain
-            resources.coins = resources.coins + math.floor(xpGain * 1.5)
+            pXp = pXp + bx.xp
+            resources.coins = resources.coins + math.floor(bx.xp * 1.5)
             bx.hp = bx.maxHp
         end
         while pXp >= pMaxXp do
@@ -736,9 +731,8 @@ if isAdmin then
             pMaxHp = pMaxHp + 25
             pHp = pMaxHp
         end
-        if log then log("👑 [ADMIN] KILL ALL — every boss defeated!", Color3.fromRGB(255, 80, 80)) end
-        if updateUI then updateUI() end
-        if saveGame then saveGame() end
+        log("👑 [ADMIN] KILL ALL!", Color3.fromRGB(255, 80, 80))
+        updateUI()
     end)
 end
 local TweenService = game:GetService("TweenService")
