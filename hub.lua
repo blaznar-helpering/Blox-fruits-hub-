@@ -383,9 +383,9 @@ local function createGatherRow(name, color, yPos, resourceKey, yield)
     end)
 end
 
-createGatherRow("🌲 Chop Trees (+3 Wood)", Color3.fromRGB(120, 70, 20), 35, "wood", 3)
-createGatherRow("🪨 Mine Stone Quarry (+3 Stone)", Color3.fromRGB(90, 100, 110), 80, "stone", 3)
-createGatherRow("⛏️ Dig Iron Vein (+2 Iron Ore)", Color3.fromRGB(70, 80, 95), 125, "ironOre", 2)
+createGatherRow("🌲 Chop Trees (+3 Wood)", ..., 100, ...)
+createGatherRow("🪨 Mine Stone Quarry (+3 Stone)", ..., 145, ...)
+createGatherRow("⛏️ Dig Iron Vein (+2 Iron Ore)", ..., 190, ...)
 -- Tap Counter for Gold Bars (100 Taps = 1 Gold Bar)
 local tapCount = 0
 local tapBtn = Instance.new("TextButton")
