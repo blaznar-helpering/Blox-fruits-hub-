@@ -1,739 +1,383 @@
 --[[
-    Windows 11 Terraria 2D Master Sandbox Edition
-    Designed for GitHub Hosting & Delta Execution
-]]--
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+    Groq AI Assistant — v4.5 (Multi-Key Fixed)
+    Owner build — All uh stuff
+]]
 
--- ===== ADMIN GATE =====
-local ADMIN_IDS = { 8440869752 }
-local isAdmin = table.find(ADMIN_IDS, player.UserId) ~= nil
+local CoreGui      = game:GetService("CoreGui")
+local UIS          = game:GetService("UserInputService")
+local HttpService  = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
+local RunService   = game:GetService("RunService")
 
+-- ===== CONFIG =====
+local MODEL        = "openai/gpt-oss-120b"
+local MAX_TOKENS   = 1024
+local KEY_FILE     = "groq_keys_multi.txt" 
 
--- Clean duplicate execution GUIs
-for _, child in ipairs(playerGui:GetChildren()) do
-    if child.Name == "Win11_Terraria_Master" then
-        child:Destroy()
-    end
+local httpRequest = (syn and syn.request) or (http and http.request) or (fluxus and fluxus.request) or (getgenv and getgenv().request) or (request) or nil
+
+-- ===== CLEANUP OLD INSTANCES =====
+for _, name in ipairs({"GroqKeyPrompt", "GroqSplash", "GroqAssistant"}) do
+    local old = CoreGui:FindFirstChild(name)
+    if old then old:Destroy() end
 end
 
--- ScreenGui Setup
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "Win11_Terraria_Master"
-screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screenGui.Parent = playerGui
-
--- Main Draggable Window Frame
-local window = Instance.new("Frame")
-window.Size = UDim2.new(0, 420, 0, 400)
-window.Position = UDim2.new(0.5, -210, 0.15, 0)
-window.BackgroundColor3 = Color3.fromRGB(20, 24, 32)
-window.Parent = screenGui
-
-local wCorner = Instance.new("UICorner") wCorner.CornerRadius = UDim.new(0, 10) wCorner.Parent = window
-local wStroke = Instance.new("UIStroke") wStroke.Color = Color3.fromRGB(60, 65, 80) wStroke.Thickness = 1 wStroke.Parent = window
-
--- Drag Title Bar
-local titleBar = Instance.new("Frame")
-titleBar.Size = UDim2.new(1, 0, 0, 32)
-titleBar.BackgroundTransparency = 1
-titleBar.Parent = window
-
-local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, -35, 1, 0)
-titleLabel.Position = UDim2.new(0, 10, 0, 0)
-titleLabel.BackgroundTransparency = 1
-titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-titleLabel.Text = "🪟 Windows 11 - Terraria 2D Master Sandbox"
-titleLabel.Font = Enum.Font.GothamBold
-titleLabel.TextSize = 11
-titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-titleLabel.Parent = titleBar
-
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 30, 0, 30)
-closeBtn.Position = UDim2.new(1, -30, 0, 0)
-closeBtn.BackgroundTransparency = 1
-closeBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
-closeBtn.Text = "✕"
-closeBtn.TextSize = 12
-closeBtn.Parent = titleBar
-
-closeBtn.MouseButton1Click:Connect(function() window.Visible = false end)
-
--- Touch & Mouse Window Dragging System
-local dragging, dragStart, startPos
-titleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true dragStart = input.Position startPos = window.Position
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        window.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
--- Game State & Inventory Variables
-local pLvl = 1
-local pXp = 0
-local pMaxXp = 50
-local pHp = 100
-local pMaxHp = 100
-
-local resources = {
-    wood = 20, stone = 20, ironOre = 10, goldOre = 5, demoniteOre = 0, hallowedOre = 0,
-    ironBar = 0, goldBar = 0, demoniteBar = 0, hallowedBar = 0,
-    coins = 100
-}
-
-local equippedWeapon = "Copper Shortsword"
-local weaponDps = 10
-local weaponClass = "Melee"
-
-local equippedAccessory = "None"
-local accessoryBonusDps = 0
-
-local npcs = {
-    Guide = true,
-    Merchant = false,
-    Nurse = false,
-    ArmsDealer = false,
-    Dryad = false
-}
-
-local selectedBuildTile = "Dirt"
-
--- Boss Roster (Pre-Hardmode, Hardmode, Endgame)
-local bossIndex = 1
-local bosses = {
-    {name = "1. King Slime", hp = 100, maxHp = 100, atk = 6, xp = 30, boost = 5, color = Color3.fromRGB(40, 100, 220)},
-    {name = "2. Eye of Cthulhu", hp = 300, maxHp = 300, atk = 14, xp = 60, boost = 10, color = Color3.fromRGB(180, 40, 40)},
-    {name = "3. Eater of Worlds", hp = 550, maxHp = 550, atk = 22, xp = 100, boost = 18, color = Color3.fromRGB(80, 50, 120)},
-    {name = "4. Queen Bee", hp = 900, maxHp = 900, atk = 35, xp = 200, boost = 28, color = Color3.fromRGB(220, 170, 30)},
-    {name = "5. Skeletron", hp = 1500, maxHp = 1500, atk = 50, xp = 350, boost = 45, color = Color3.fromRGB(140, 140, 140)},
-    {name = "6. Wall of Flesh", hp = 2500, maxHp = 2500, atk = 75, xp = 600, boost = 80, color = Color3.fromRGB(150, 20, 50)},
-    {name = "7. The Twins", hp = 6000, maxHp = 6000, atk = 120, xp = 1200, boost = 180, color = Color3.fromRGB(200, 30, 80)},
-    {name = "8. The Destroyer", hp = 12000, maxHp = 12000, atk = 180, xp = 2000, boost = 280, color = Color3.fromRGB(100, 120, 140)},
-    {name = "9. Skeletron Prime", hp = 18000, maxHp = 18000, atk = 250, xp = 3000, boost = 400, color = Color3.fromRGB(180, 50, 50)},
-    {name = "10. Plantera", hp = 30000, maxHp = 30000, atk = 350, xp = 5000, boost = 600, color = Color3.fromRGB(40, 180, 80)},
-    {name = "11. Golem", hp = 50000, maxHp = 50000, atk = 480, xp = 8000, boost = 900, color = Color3.fromRGB(210, 100, 30)},
-    {name = "12. Moon Lord", hp = 200000, maxHp = 200000, atk = 900, xp = 25000, boost = 3000, color = Color3.fromRGB(0, 220, 180)}
-}
-
--- Top Main Stats Header
-local statsHUD = Instance.new("TextLabel")
-statsHUD.Size = UDim2.new(1, -20, 0, 22)
-statsHUD.Position = UDim2.new(0, 10, 0, 32)
-statsHUD.BackgroundColor3 = Color3.fromRGB(12, 15, 20)
-statsHUD.TextColor3 = Color3.fromRGB(255, 255, 255)
-statsHUD.Text = "❤️ 100/100 | Lvl: 1 | 🗡️ Copper Shortsword (10 DPS) | 🪙 Coins: 100"
-statsHUD.Font = Enum.Font.Gotham
-statsHUD.TextSize = 9
-statsHUD.Parent = window
-
--- Navigation Tabs Bar
-local tabContainer = Instance.new("Frame")
-tabContainer.Size = UDim2.new(1, -20, 0, 26)
-tabContainer.Position = UDim2.new(0, 10, 0, 58)
-tabContainer.BackgroundTransparency = 1
-tabContainer.Parent = window
-
-local tabLayout = Instance.new("UIListLayout")
-tabLayout.FillDirection = Enum.FillDirection.Horizontal
-tabLayout.Padding = UDim.new(0, 4)
-tabLayout.Parent = tabContainer
-
--- Tab Content Frames
-local frames = {}
-local function createTab(name, id)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 75, 1, 0)
-    btn.BackgroundColor3 = Color3.fromRGB(35, 40, 52)
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Text = name
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 9
-    btn.Parent = tabContainer
-    local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 4) c.Parent = btn
-
-    local f = Instance.new("Frame")
-    f.Size = UDim2.new(1, -20, 0, 250)
-    f.Position = UDim2.new(0, 10, 0, 90)
-    f.BackgroundTransparency = 1
-    f.Visible = false
-    f.Parent = window
-    frames[id] = f
-
-    btn.MouseButton1Click:Connect(function()
-        for _, frame in pairs(frames) do frame.Visible = false end
-        f.Visible = true
-    end)
-end
-
-createTab("⚔️ Combat", "combat")
-createTab("⛏️ Gather", "gather")
-createTab("🧱 Build", "build")
-createTab("🛠️ Craft", "craft")
-createTab("🏡 Town", "town")
-frames["combat"].Visible = true -- Default Active Tab
-
-local function updateUI()
-    local totalDps = weaponDps + accessoryBonusDps
-    statsHUD.Text = string.format("❤️ %d/%d | Lvl: %d | 🗡️ %s (%d DPS) | 🪙 Coins: %d", pHp, pMaxHp, pLvl, equippedWeapon, totalDps, resources.coins)
-end
-
-local function resetHardcore()
-    pLvl = 1 pXp = 0 pMaxXp = 50 pHp = 100 pMaxHp = 100
-    resources.wood = 20 resources.stone = 20 resources.coins = 50
-    equippedWeapon = "Copper Shortsword" weaponDps = 10
-    bossIndex = 1
-    for _, b in ipairs(bosses) do b.hp = b.maxHp end
-    updateUI()
-end
--- ===== CHAT SYSTEM =====
-local chatBox = Instance.new("ScrollingFrame")
-chatBox.Size = UDim2.new(1, -20, 0, 55)
-chatBox.Position = UDim2.new(0, 10, 1, -65)
-chatBox.BackgroundColor3 = Color3.fromRGB(10, 12, 16)
-chatBox.BorderSizePixel = 0
-chatBox.CanvasSize = UDim2.new(0, 0, 0, 0)
-chatBox.ScrollBarThickness = 3
-chatBox.Parent = window
-local chatCorner = Instance.new("UICorner") chatCorner.CornerRadius = UDim.new(0, 4) chatCorner.Parent = chatBox
-
-local chatLayout = Instance.new("UIListLayout")
-chatLayout.SortOrder = Enum.SortOrder.LayoutOrder
-chatLayout.Padding = UDim.new(0, 2)
-chatLayout.Parent = chatBox
-
-local chatCount = 0
-function log(msg, color)
-    chatCount = chatCount + 1
-    local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, -6, 0, 14)
-    lbl.BackgroundTransparency = 1
-    lbl.TextColor3 = color or Color3.fromRGB(200, 200, 200)
-    lbl.Text = "[" .. os.date("%H:%M") .. "] " .. msg
-    lbl.Font = Enum.Font.Code
-    lbl.TextSize = 9
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.LayoutOrder = chatCount
-    lbl.Parent = chatBox
-    chatBox.CanvasSize = UDim2.new(0, 0, 0, chatCount * 16)
-    task.defer(function()
-        chatBox.CanvasPosition = Vector2.new(0, math.max(0, chatCount * 16 - chatBox.AbsoluteSize.Y))
-    end)
-    if chatCount > 50 then
-        local oldest = chatBox:FindFirstChildOfClass("TextLabel")
-        if oldest and oldest.LayoutOrder == 1 then oldest:Destroy() end
-    end
-end
-
-log("System ready.", Color3.fromRGB(100, 255, 150))
--- ====================================================================
--- 1. CHARACTER CLASS SELECTION SYSTEM
--- ====================================================================
-local playerClass = "Warrior" -- Default selection
-
-local classFrame = Instance.new("Frame")
-classFrame.Size = UDim2.new(1, -20, 0, 35)
-classFrame.Position = UDim2.new(0, 10, 0, 10)
-classFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-classFrame.Parent = frames["gather"] -- Adjust to your frame name if needed
-
-local classes = {"Warrior", "Mage", "Ranger", "Summoner"}
-for i, className in ipairs(classes) do
-    local cBtn = Instance.new("TextButton")
-    cBtn.Size = UDim2.new(0.23, 0, 0, 25)
-    cBtn.Position = UDim2.new(0.02 + (i - 1) * 0.24, 0, 0, 5)
-    cBtn.BackgroundColor3 = (className == "Warrior") and Color3.fromRGB(60, 180, 75) or Color3.fromRGB(50, 50, 70)
-    cBtn.Text = className
-    cBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    cBtn.Font = Enum.Font.GothamBold
-    cBtn.TextSize = 9
-    cBtn.Parent = classFrame
-
-    local uic = Instance.new("UICorner")
-    uic.CornerRadius = UDim.new(0, 4)
-    uic.Parent = cBtn
-
-    cBtn.MouseButton1Click:Connect(function()
-        playerClass = className
-        for _, btn in ipairs(classFrame:GetChildren()) do
-            if btn:IsA("TextButton") then
-                btn.BackgroundColor3 = (btn.Text == playerClass) and Color3.fromRGB(60, 180, 75) or Color3.fromRGB(50, 50, 70)
+-- ===== KEY SAVING =====
+local function loadKeys()
+    local keys = {}
+    if isfile and isfile(KEY_FILE) then
+        local ok, data = pcall(readfile, KEY_FILE)
+        if ok and type(data) == "string" then
+            for k in string.gmatch(data, "([^,]+)") do
+                table.insert(keys, k)
             end
         end
-    end)
+    end
+    return keys
 end
 
--- ====================================================================
--- 2. MULTIPLAYER SERVER BOSS SPAWNER
--- ====================================================================
-local bossBtn = Instance.new("TextButton")
-bossBtn.Size = UDim2.new(1, -20, 0, 30)
-bossBtn.Position = UDim2.new(0, 10, 0, 55)
-bossBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-bossBtn.Text = "👁️ SPAWN EYE OF CTHULHU (SERVER)"
-bossBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-bossBtn.Font = Enum.Font.GothamBold
-bossBtn.TextSize = 10
-bossBtn.Parent = frames["gather"] -- Adjust to your frame name if needed
-
-local bossUic = Instance.new("UICorner")
-bossUic.CornerRadius = UDim.new(0, 4)
-bossUic.Parent = bossBtn
-
-bossBtn.MouseButton1Click:Connect(function()
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Terraria Boss Event!",
-        Text = game.Players.LocalPlayer.Name .. " (" .. playerClass .. ") summoned Eye of Cthulhu!",
-        Duration = 5
-    })
-end)
-
--- ==================== TAB 1: COMBAT & BOSS ARENA ====================
-local bossCard = Instance.new("Frame")
-bossCard.Size = UDim2.new(1, 0, 0, 70)
-bossCard.Position = UDim2.new(0, 0, 0, 5)
-bossCard.BackgroundColor3 = bosses[1].color
-bossCard.Parent = frames["combat"]
-local bcCorner = Instance.new("UICorner") bcCorner.CornerRadius = UDim.new(0, 6) bcCorner.Parent = bossCard
-
-local bossTitle = Instance.new("TextLabel")
-bossTitle.Size = UDim2.new(1, 0, 0, 22)
-bossTitle.Position = UDim2.new(0, 0, 0, 5)
-bossTitle.BackgroundTransparency = 1
-bossTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-bossTitle.Text = bosses[1].name
-bossTitle.Font = Enum.Font.GothamBold
-bossTitle.TextSize = 12
-bossTitle.Parent = bossCard
-
-local hpBack = Instance.new("Frame")
-hpBack.Size = UDim2.new(0.8, 0, 0, 10)
-hpBack.Position = UDim2.new(0.1, 0, 0.65, 0)
-hpBack.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-hpBack.Parent = bossCard
-
-local hpFill = Instance.new("Frame")
-hpFill.Size = UDim2.new(1, 0, 1, 0)
-hpFill.BackgroundColor3 = Color3.fromRGB(40, 200, 60)
-hpFill.BorderSizePixel = 0
-hpFill.Parent = hpBack
-
-local btnAtk = Instance.new("TextButton")
-btnAtk.Size = UDim2.new(1, 0, 0, 45)
-btnAtk.Position = UDim2.new(0, 0, 0, 85)
-btnAtk.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-btnAtk.TextColor3 = Color3.fromRGB(255, 255, 255)
-btnAtk.Text = "⚔️ ATTACK BOSS"
-btnAtk.Font = Enum.Font.GothamBold
-btnAtk.TextSize = 12
-btnAtk.Parent = frames["combat"]
-local bAtkC = Instance.new("UICorner") bAtkC.CornerRadius = UDim.new(0, 6) bAtkC.Parent = btnAtk
-
-local btnHeal = Instance.new("TextButton")
-btnHeal.Size = UDim2.new(1, 0, 0, 35)
-btnHeal.Position = UDim2.new(0, 0, 0, 140)
-btnHeal.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
-btnHeal.TextColor3 = Color3.fromRGB(255, 255, 255)
-btnHeal.Text = "🧪 RESTORE HEALTH (Cost: 🪙 20 Coins)"
-btnHeal.Font = Enum.Font.GothamBold
-btnHeal.TextSize = 10
-btnHeal.Parent = frames["combat"]
-local bHealC = Instance.new("UICorner") bHealC.CornerRadius = UDim.new(0, 6) bHealC.Parent = btnHeal
-
-btnAtk.MouseButton1Click:Connect(function()
-    local b = bosses[bossIndex]
-    local totalDps = weaponDps + accessoryBonusDps
-    
-    b.hp = math.max(0, b.hp - totalDps)
-    pHp = math.max(0, pHp - b.atk)
-
-    if pHp <= 0 then
-        resetHardcore()
-        return
+local function saveKey(key) 
+    local keys = loadKeys()
+    for _, k in ipairs(keys) do
+        if k == key then return end 
     end
-
-    if b.hp <= 0 then
-        pXp = pXp + b.xp
-        resources.coins = resources.coins + math.floor(b.xp * 1.5)
-        if pXp >= pMaxXp then
-            pLvl = pLvl + 1
-            pMaxXp = math.floor(pMaxXp * 1.5)
-            pMaxHp = pMaxHp + 25
-            pHp = pMaxHp
-        end
-        
-        if bossIndex < #bosses then
-            bossIndex = bossIndex + 1
-        else
-            b.hp = b.maxHp
-        end
+    table.insert(keys, key)
+    if writefile then
+        pcall(writefile, KEY_FILE, table.concat(keys, ","))
     end
-
-    local currentB = bosses[bossIndex]
-    bossTitle.Text = currentB.name .. " (Deals " .. currentB.atk .. " Atk)"
-    bossCard.BackgroundColor3 = currentB.color
-    hpFill.Size = UDim2.new(math.clamp(currentB.hp / currentB.maxHp, 0, 1), 0, 1, 0)
-    updateUI()
-end)
-
-btnHeal.MouseButton1Click:Connect(function()
-    if resources.coins >= 20 then
-        resources.coins = resources.coins - 20
-        pHp = pMaxHp
-        updateUI()
-    end
-end)
-
--- ==================== TAB 2: MINING & GATHERING ====================
-local resLabel = Instance.new("TextLabel")
-resLabel.Size = UDim2.new(1, 0, 0, 25)
-resLabel.BackgroundTransparency = 1
-resLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-resLabel.Text = "🪵 Wood: 20 | 🪨 Stone: 20 | ⛏️ Iron Ore: 10 | 🪙 Gold Ore: 5"
-resLabel.Font = Enum.Font.GothamBold
-resLabel.TextSize = 9
-resLabel.Parent = frames["gather"]
-
-local function createGatherRow(name, color, yPos, resourceKey, yield)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 35)
-    btn.Position = UDim2.new(0, 0, 0, yPos)
-    btn.BackgroundColor3 = color
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Text = name
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 10
-    btn.Parent = frames["gather"]
-    local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 6) c.Parent = btn
-
-    btn.MouseButton1Click:Connect(function()
-        resources[resourceKey] = resources[resourceKey] + yield
-        resLabel.Text = string.format("🪵 Wood: %d | 🪨 Stone: %d | ⛏️ Iron: %d | 🪙 Gold: %d", resources.wood, resources.stone, resources.ironOre, resources.goldOre)
-        updateUI()
-    end)
 end
 
-createGatherRow("🌲 Chop Trees (+3 Wood)", Color3.fromRGB(120, 70, 20), 100, "wood", 3)
-createGatherRow("🪨 Mine Stone Quarry (+3 Stone)", Color3.fromRGB(90, 100, 110), 130, "stone", 3)
-createGatherRow("⛏️ Dig Iron Vein (+2 Iron Ore)", Color3.fromRGB(70, 80, 95), 160, "ironOre", 2)
--- Tap Counter for Gold Bars (100 Taps = 1 Gold Bar)
-local tapCount = 0
-local tapBtn = Instance.new("TextButton")
-tapBtn.Size = UDim2.new(1, 0, 0, 35)
-tapBtn.Position = UDim2.new(0, 0, 0, 195)  -- below the 3 gather rows
-tapBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-tapBtn.Text = "🪙 Tap For Gold! (0 / 100 Taps)"
-tapBtn.Font = Enum.Font.GothamBold
-tapBtn.TextSize = 10
-tapBtn.Parent = frames["gather"]
-local tbC = Instance.new("UICorner") tbC.CornerRadius = UDim.new(0, 6) tbC.Parent = tapBtn
+local function clearKeys()
+    if writefile then pcall(writefile, KEY_FILE, "") end
+end
 
-tapBtn.MouseButton1Click:Connect(function()
-    tapCount = tapCount + 1
-    if tapCount >= 100 then
-        tapCount = 0
-        resources.goldBar = resources.goldBar + 1
-        tapBtn.Text = "🪙 Tap For Gold! (0 / 100 Taps) - +1 BAR!"
+-- ===== KEY PROMPT UI =====
+local keys = loadKeys()
+
+local pg = Instance.new("ScreenGui")
+pg.Name = "GroqKeyPrompt"; pg.ResetOnSpawn = false; pg.Parent = CoreGui
+local f = Instance.new("Frame", pg)
+f.Size = UDim2.new(0, 320, 0, 380); f.Position = UDim2.new(0.5, -160, 0.5, -190)
+f.BackgroundColor3 = Color3.fromRGB(15, 15, 20); f.BorderSizePixel = 0
+Instance.new("UICorner", f).CornerRadius = UDim.new(0, 12)
+local st = Instance.new("UIStroke", f); st.Color = Color3.fromRGB(120, 80, 255); st.Thickness = 2
+
+local lbl = Instance.new("TextLabel", f)
+lbl.Size = UDim2.new(1, -20, 0, 30); lbl.Position = UDim2.new(0, 10, 0, 10)
+lbl.BackgroundTransparency = 1; lbl.Text = "Select or Add API Key"
+lbl.TextColor3 = Color3.fromRGB(180, 140, 255); lbl.Font = Enum.Font.Code; lbl.TextSize = 16
+lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+local scroll = Instance.new("ScrollingFrame", f)
+scroll.Size = UDim2.new(1, -20, 0, 150); scroll.Position = UDim2.new(0, 10, 0, 45)
+scroll.BackgroundColor3 = Color3.fromRGB(20, 20, 25); scroll.BorderSizePixel = 0
+scroll.ScrollBarThickness = 4; scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y; scroll.CanvasSize = UDim2.new(0,0,0,0)
+Instance.new("UICorner", scroll).CornerRadius = UDim.new(0, 8)
+local layout = Instance.new("UIListLayout", scroll)
+layout.Padding = UDim.new(0, 4); layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local function refreshKeyList()
+    for _, child in ipairs(scroll:GetChildren()) do
+        if child:IsA("TextButton") or child:IsA("TextLabel") then child:Destroy() end
+    end
+    if #keys == 0 then
+        local empty = Instance.new("TextLabel", scroll)
+        empty.Size = UDim2.new(1, 0, 0, 30); empty.BackgroundTransparency = 1
+        empty.Text = "No keys saved yet."; empty.TextColor3 = Color3.fromRGB(100, 100, 110); empty.Font = Enum.Font.Gotham
     else
-        tapBtn.Text = string.format("🪙 Tap For Gold! (%d / 100 Taps)", tapCount)
+        for i, k in ipairs(keys) do
+            local btn = Instance.new("TextButton", scroll)
+            btn.Size = UDim2.new(1, 0, 0, 30); btn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+            btn.Text = "Key " .. i .. ": " .. string.sub(k, 1, 8) .. "..." .. string.sub(k, -4)
+            btn.TextColor3 = Color3.fromRGB(220, 220, 240); btn.Font = Enum.Font.Code; btn.TextSize = 12
+            btn.TextXAlignment = Enum.TextXAlignment.Left
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+            local pad = Instance.new("UIPadding", btn); pad.PaddingLeft = UDim.new(0, 10)
+            
+            btn.MouseButton1Click:Connect(function()
+                pg:Destroy()
+                loadMainGUI(k) -- Boot instantly!
+            end)
+        end
     end
-    updateUI()
+end
+refreshKeyList()
+
+local box = Instance.new("TextBox", f)
+box.Size = UDim2.new(1, -20, 0, 36); box.Position = UDim2.new(0, 10, 0, 205)
+box.BackgroundColor3 = Color3.fromRGB(25, 25, 30); box.PlaceholderText = "Paste new gsk_... here"
+box.TextColor3 = Color3.fromRGB(220, 220, 240); box.Font = Enum.Font.Code; box.TextSize = 13; box.ClearTextOnFocus = false
+Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+
+local saveBtn = Instance.new("TextButton", f)
+saveBtn.Size = UDim2.new(0.5, -15, 0, 34); saveBtn.Position = UDim2.new(0, 10, 0, 250)
+saveBtn.BackgroundColor3 = Color3.fromRGB(120, 80, 255); saveBtn.Text = "ADD KEY"
+saveBtn.TextColor3 = Color3.fromRGB(255, 255, 255); saveBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", saveBtn).CornerRadius = UDim.new(0, 8)
+saveBtn.MouseButton1Click:Connect(function()
+    local k = box.Text:gsub("%s+$", "")
+    if k ~= "" then
+        saveKey(k); keys = loadKeys(); refreshKeyList(); box.Text = ""
+    end
 end)
 
--- ==================== TAB 3: 2D BUILDING GRID ====================
-local tilePalette = {"Dirt", "Wood", "Stone", "Brick"}
-local tileColors = {Dirt = Color3.fromRGB(120, 80, 40), Wood = Color3.fromRGB(150, 100, 40), Stone = Color3.fromRGB(100, 100, 100), Brick = Color3.fromRGB(180, 60, 40)}
+local clearBtn = Instance.new("TextButton", f)
+clearBtn.Size = UDim2.new(0.5, -15, 0, 34); clearBtn.Position = UDim2.new(0.5, 5, 0, 250)
+clearBtn.BackgroundColor3 = Color3.fromRGB(80, 30, 35); clearBtn.Text = "CLEAR ALL"
+clearBtn.TextColor3 = Color3.fromRGB(255, 150, 150); clearBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", clearBtn).CornerRadius = UDim.new(0, 8)
+clearBtn.MouseButton1Click:Connect(function()
+    clearKeys(); keys = {}; refreshKeyList()
+end)
 
-local palHolder = Instance.new("Frame")
-palHolder.Size = UDim2.new(1, 0, 0, 25)
-palHolder.BackgroundTransparency = 1
-palHolder.Parent = frames["build"]
+local startBtn = Instance.new("TextButton", f)
+startBtn.Size = UDim2.new(1, -20, 0, 40); startBtn.Position = UDim2.new(0, 10, 1, -50)
+startBtn.BackgroundColor3 = Color3.fromRGB(80, 200, 120); startBtn.Text = "START AI"
+startBtn.TextColor3 = Color3.fromRGB(255, 255, 255); startBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", startBtn).CornerRadius = UDim.new(0, 8)
+startBtn.MouseButton1Click:Connect(function()
+    local k = box.Text:gsub("%s+$", "")
+    if k ~= "" then saveKey(k); k = k else k = keys[1] end
+    if k then
+        pg:Destroy()
+        loadMainGUI(k) -- Boot instantly!
+    end
+end)
 
-local palLayout = Instance.new("UIListLayout")
-palLayout.FillDirection = Enum.FillDirection.Horizontal
-palLayout.Padding = UDim.new(0, 4)
-palLayout.Parent = palHolder
+-- ===== MAIN FUNCTION (Boots after key is picked) =====
+function loadMainGUI(API_KEY)
+    -- Splash
+    local splashGui = Instance.new("ScreenGui")
+    splashGui.Name = "GroqSplash"; splashGui.ResetOnSpawn = false; splashGui.IgnoreGuiInset = true; splashGui.Parent = CoreGui
+    local splashFrame = Instance.new("Frame", splashGui)
+    splashFrame.Size = UDim2.new(1, 0, 1, 0); splashFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 12); splashFrame.BorderSizePixel = 0; splashFrame.ZIndex = 100
+    local splashTitle = Instance.new("TextLabel", splashFrame)
+    splashTitle.Size = UDim2.new(1, 0, 0, 50); splashTitle.Position = UDim2.new(0, 0, 0.5, -45)
+    splashTitle.BackgroundTransparency = 1; splashTitle.Text = "⚡ GROQ v4.5"
+    splashTitle.TextColor3 = Color3.fromRGB(140, 100, 255); splashTitle.Font = Enum.Font.Code; splashTitle.TextSize = 32; splashTitle.ZIndex = 101
+    local splashSub = Instance.new("TextLabel", splashFrame)
+    splashSub.Size = UDim2.new(1, 0, 0, 30); splashSub.Position = UDim2.new(0, 0, 0.5, 10)
+    splashSub.BackgroundTransparency = 1; splashSub.Text = "Initializing physics engine..."; splashSub.TextColor3 = Color3.fromRGB(160, 160, 175)
+    splashSub.Font = Enum.Font.Gotham; splashSub.TextSize = 14; splashSub.ZIndex = 101
 
-for _, tName in ipairs(tilePalette) do
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.new(0, 85, 1, 0)
-    b.BackgroundColor3 = tileColors[tName]
-    b.TextColor3 = Color3.fromRGB(255, 255, 255)
-    b.Text = tName
-    b.Font = Enum.Font.GothamBold
-    b.TextSize = 9
-    b.Parent = palHolder
-    local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 4) c.Parent = b
-    
-    b.MouseButton1Click:Connect(function()
-        selectedBuildTile = tName
-    end)
-end
+    task.wait(0.8)
+    splashSub.Text = "Neural link established."
+    task.wait(0.6)
+    splashGui:Destroy()
 
--- 8x5 Tile Grid Screen
-local gridFrame = Instance.new("Frame")
-gridFrame.Size = UDim2.new(1, 0, 0, 180)
-gridFrame.Position = UDim2.new(0, 0, 0, 35)
-gridFrame.BackgroundColor3 = Color3.fromRGB(15, 20, 30)
-gridFrame.Parent = frames["build"]
-local gfC = Instance.new("UICorner") gfC.CornerRadius = UDim.new(0, 6) gfC.Parent = gridFrame
+    -- Main App
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "GroqAssistant"; gui.ResetOnSpawn = false; gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.Parent = CoreGui
 
-local gLayout = Instance.new("UIGridLayout")
-gLayout.CellSize = UDim2.new(0, 42, 0, 32)
-gLayout.CellPadding = UDim2.new(0, 4, 0, 4)
-gLayout.Parent = gridFrame
+    local fullSize = UDim2.new(0, 390, 0, 280)
+    local miniSize = UDim2.new(0, 50, 0, 50) 
+    local normalPos = UDim2.new(0.5, -195, 0.5, -140)
+    local upPos     = UDim2.new(0.5, -195, 0.12, 0)
 
-for i = 1, 40 do
-    local tileBtn = Instance.new("TextButton")
-    tileBtn.BackgroundColor3 = Color3.fromRGB(30, 35, 45)
-    tileBtn.Text = ""
-    tileBtn.Parent = gridFrame
-    
-    tileBtn.MouseButton1Click:Connect(function()
-        if tileBtn.BackgroundColor3 == tileColors[selectedBuildTile] then
-            tileBtn.BackgroundColor3 = Color3.fromRGB(30, 35, 45) -- Erase
-        else
-            tileBtn.BackgroundColor3 = tileColors[selectedBuildTile] -- Build
-        end
-    end)
-end
+    local main = Instance.new("Frame", gui)
+    main.Size = fullSize; main.Position = normalPos
+    main.BackgroundColor3 = Color3.fromRGB(12, 12, 16); main.BorderSizePixel = 0; main.ClipsDescendants = true; main.Active = true
+    Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
 
--- ==================== TAB 4: MULTI-TIER CRAFTING ====================
-local craftScroll = Instance.new("ScrollingFrame")
-craftScroll.Size = UDim2.new(1, 0, 1, 0)
-craftScroll.CanvasSize = UDim2.new(0, 0, 0, 320)
-craftScroll.BackgroundTransparency = 1
-craftScroll.Parent = frames["craft"]
+    local ms = Instance.new("UIStroke", main); ms.Color = Color3.fromRGB(130, 90, 255); ms.Thickness = 1.5
+    local grad = Instance.new("UIGradient", main)
+    grad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 15, 20)), ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 20, 35))})
+    grad.Rotation = 45
 
-local cList = Instance.new("UIListLayout")
-cList.Padding = UDim.new(0, 6)
-cList.Parent = craftScroll
+    -- Header
+    local header = Instance.new("Frame", main)
+    header.Size = UDim2.new(1, 0, 0, 40); header.BackgroundColor3 = Color3.fromRGB(20, 20, 28); header.BackgroundTransparency = 0.2; header.BorderSizePixel = 0; header.ZIndex = 2
 
-local function addCraftRecipe(name, reqText, costCheck, applyCraft)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 35)
-    btn.BackgroundColor3 = Color3.fromRGB(35, 42, 56)
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Text = name .. "\n(" .. reqText .. ")"
-    btn.Font = Enum.Font.GothamMedium
-    btn.TextSize = 9
-    btn.Parent = craftScroll
-    local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 4) c.Parent = btn
+    local title = Instance.new("TextLabel", header)
+    title.Size = UDim2.new(1, -120, 1, 0); title.Position = UDim2.new(0, 14, 0, 0)
+    title.BackgroundTransparency = 1; title.Text = "⚡ GROQ v4.5"; title.TextColor3 = Color3.fromRGB(240, 240, 255); title.TextSize = 15; title.Font = Enum.Font.Code; title.TextXAlignment = Enum.TextXAlignment.Left
 
-    btn.MouseButton1Click:Connect(function()
-        if costCheck() then
-            applyCraft()
-            updateUI()
-        end
-    end)
-end
-
-addCraftRecipe("🧱 Smelt Iron Bars (+1 Iron Bar)", "2 Iron Ore", 
-    function() return resources.ironOre >= 2 end, 
-    function() resources.ironOre = resources.ironOre - 2 resources.ironBar = resources.ironBar + 1 end)
-
-addCraftRecipe("🪙 Smelt Gold Bars (+1 Gold Bar)", "2 Gold Ore", 
-    function() return resources.goldOre >= 2 end, 
-    function() resources.goldOre = resources.goldOre - 2 resources.goldBar = resources.goldBar + 1 end)
-
-addCraftRecipe("⚔️ Craft Iron Broadsword (35 DPS)", "5 Iron Bars, 10 Wood", 
-    function() return resources.ironBar >= 5 and resources.wood >= 10 end, 
-    function() resources.ironBar = resources.ironBar - 5 resources.wood = resources.wood - 10 equippedWeapon = "Iron Broadsword" weaponDps = 35 end)
-
-addCraftRecipe("🪄 Craft Gold Staff (65 DPS)", "5 Gold Bars, 15 Stone", 
-    function() return resources.goldBar >= 5 and resources.stone >= 15 end, 
-    function() resources.goldBar = resources.goldBar - 5 resources.stone = resources.stone - 15 equippedWeapon = "Gold Staff" weaponDps = 65 end)
-
-addCraftRecipe("⚡ Craft Terra Blade (250 DPS)", "10 Demonite Bars, 10 Hallowed Bars", 
-    function() return resources.demoniteBar >= 10 and resources.hallowedBar >= 10 end, 
-    function() resources.demoniteBar = resources.demoniteBar - 10 resources.hallowedBar = resources.hallowedBar - 10 equippedWeapon = "Terra Blade" weaponDps = 250 end)
-
-addCraftRecipe("🌟 Craft Zenith (1000 DPS)", "50 Gold Bars, 50 Demonite Bars", 
-    function() return resources.goldBar >= 50 and resources.demoniteBar >= 50 end, 
-    function() resources.goldBar = resources.goldBar - 50 resources.demoniteBar = resources.demoniteBar - 50 equippedWeapon = "Zenith" weaponDps = 1000 end)
-  
-addCraftRecipe("🛡️ Craft Ankh Shield (+50% Max HP)", "20 Iron Bars, 10 Gold Bars", 
-    function() return resources.ironBar >= 20 and resources.goldBar >= 10 end, 
-    function() 
-        resources.ironBar = resources.ironBar - 20 
-        resources.goldBar = resources.goldBar - 10 
-        maxHp = maxHp + 100 
-        pHp = maxHp 
-    end)
-
-addCraftRecipe("🔥 Craft Solar Eruption (450 DPS)", "15 Hallowed Bars, 30 Gold Ore", 
-    function() return resources.hallowedBar >= 15 and resources.goldOre >= 30 end, 
-    function() 
-        resources.hallowedBar = resources.hallowedBar - 15 
-        resources.goldOre = resources.goldOre - 30 
-        equippedWeapon = "Solar Eruption" 
-        weaponDps = 450 
-    end)
-
-addCraftRecipe("🌟 Craft Star Wrath (750 DPS)", "20 Hallowed Bars, 50 Iron Bars", 
-    function() return resources.hallowedBar >= 20 and resources.ironBar >= 50 end, 
-    function() 
-        resources.hallowedBar = resources.hallowedBar - 20 
-        resources.ironBar = resources.ironBar - 50 
-        equippedWeapon = "Star Wrath" 
-        weaponDps = 750 
-    end)
-
--- ==================== TAB 5: TOWN & NPCS ====================
-local townLabel = Instance.new("TextLabel")
-townLabel.Size = UDim2.new(1, 0, 0, 30)
-townLabel.BackgroundTransparency = 1
-townLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-townLabel.Text = "🏡 Town Housing & Active NPCs"
-townLabel.Font = Enum.Font.GothamBold
-townLabel.TextSize = 11
-townLabel.Parent = frames["town"]
-
-local npcGrid = Instance.new("Frame")
-npcGrid.Size = UDim2.new(1, 0, 0, 180)
-npcGrid.Position = UDim2.new(0, 0, 0, 35)
-npcGrid.BackgroundTransparency = 1
-npcGrid.Parent = frames["town"]
-
-local npcLayout = Instance.new("UIGridLayout")
-npcLayout.CellSize = UDim2.new(0, 120, 0, 50)
-npcLayout.CellPadding = UDim2.new(0, 8, 0, 8)
-npcLayout.Parent = npcGrid
-
-local function addNpcCard(name, desc, costWood)
-    local card = Instance.new("TextButton")
-    card.BackgroundColor3 = Color3.fromRGB(35, 42, 56)
-    card.TextColor3 = Color3.fromRGB(255, 255, 255)
-    card.Text = name .. "\n(" .. desc .. ")"
-    card.Font = Enum.Font.GothamBold
-    card.TextSize = 8
-    card.Parent = npcGrid
-    local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 6) c.Parent = card
-
-    card.MouseButton1Click:Connect(function()
-        if resources.wood >= costWood then
-            resources.wood = resources.wood - costWood
-            npcs[name] = true
-            card.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
-            updateUI()
-        end
-    end)
-end
-
-addNpcCard("Merchant", "Shop Items\nCost: 20 Wood", 20)
-addNpcCard("Nurse", "Instant Heal\nCost: 30 Wood", 30)
-addNpcCard("Arms Dealer", "Guns & Ammo\nCost: 40 Wood", 40)
-addNpcCard("Dryad", "+20% Max HP\nCost: 50 Wood", 50)
--- ===== ADMIN TAB =====
-if isAdmin then
-    local adminBtn = Instance.new("TextButton")
-    adminBtn.Size = UDim2.new(0, 62, 1, 0)
-    adminBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 20)
-    adminBtn.TextColor3 = Color3.fromRGB(255, 200, 80)
-    adminBtn.Text = "👑 Admin"
-    adminBtn.Font = Enum.Font.GothamBold
-    adminBtn.TextSize = 8
-    adminBtn.Parent = tabContainer
-    local abC = Instance.new("UICorner") abC.CornerRadius = UDim.new(0, 4) abC.Parent = adminBtn
-
-    local adminFrame = Instance.new("Frame")
-    adminFrame.Size = UDim2.new(1, -20, 0, 200)
-    adminFrame.Position = UDim2.new(0, 10, 0, 90)
-    adminFrame.BackgroundTransparency = 1
-    adminFrame.Visible = false
-    adminFrame.Parent = window
-    frames["admin"] = adminFrame
-
-    adminBtn.MouseButton1Click:Connect(function()
-        for _, f in pairs(frames) do f.Visible = false end
-        adminFrame.Visible = true
-    end)
-
-    local hdr = Instance.new("TextLabel")
-    hdr.Size = UDim2.new(1, 0, 0, 16)
-    hdr.BackgroundTransparency = 1
-    hdr.TextColor3 = Color3.fromRGB(255, 200, 80)
-    hdr.Text = "👑 ADMIN — " .. player.Name
-    hdr.Font = Enum.Font.GothamBold
-    hdr.TextSize = 10
-    hdr.Parent = adminFrame
-
-    local bossGrid = Instance.new("Frame")
-    bossGrid.Size = UDim2.new(1, 0, 0, 150)
-    bossGrid.Position = UDim2.new(0, 0, 0, 20)
-    bossGrid.BackgroundTransparency = 1
-    bossGrid.Parent = adminFrame
-
-    local bgLayout = Instance.new("UIGridLayout")
-    bgLayout.CellSize = UDim2.new(0.49, -3, 0, 28)
-    bgLayout.CellPadding = UDim2.new(0, 4, 0, 4)
-    bgLayout.Parent = bossGrid
-
-    for i, boss in ipairs(bosses) do
-        local b = Instance.new("TextButton")
-        b.BackgroundColor3 = boss.color
-        b.TextColor3 = Color3.fromRGB(255, 255, 255)
-        b.Text = boss.name
-        b.Font = Enum.Font.GothamBold
-        b.TextSize = 8
-        b.Parent = bossGrid
-        local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 4) c.Parent = b
-
-        b.MouseButton1Click:Connect(function()
-            log("👑 [ADMIN] Summoned " .. boss.name .. "!", Color3.fromRGB(255, 200, 80))
-            local flash = Instance.new("Frame")
-            flash.Size = UDim2.new(1, 0, 1, 0)
-            flash.BackgroundColor3 = boss.color
-            flash.BackgroundTransparency = 0.5
-            flash.BorderSizePixel = 0
-            flash.ZIndex = 999
-            flash.Parent = screenGui
-            game:GetService("TweenService"):Create(flash, TweenInfo.new(0.6), {BackgroundTransparency = 1}):Play()
-            task.delay(0.7, function() flash:Destroy() end)
-        end)
+    local function makeHeaderBtn(text, posX, color)
+        local btn = Instance.new("TextButton", header)
+        btn.Size = UDim2.new(0, 28, 0, 24); btn.Position = UDim2.new(1, posX, 0, 8)
+        btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40); btn.Text = text; btn.TextColor3 = color
+        btn.Font = Enum.Font.GothamBold; btn.TextSize = 13
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+        return btn
     end
 
-    local killAllBtn = Instance.new("TextButton")
-    killAllBtn.Size = UDim2.new(1, 0, 0, 28)
-    killAllBtn.Position = UDim2.new(0, 0, 0, 172)
-    killAllBtn.BackgroundColor3 = Color3.fromRGB(180, 30, 30)
-    killAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    killAllBtn.Text = "☠️ KILL ALL BOSSES"
-    killAllBtn.Font = Enum.Font.GothamBold
-    killAllBtn.TextSize = 10
-    killAllBtn.Parent = adminFrame
-    local kaC = Instance.new("UICorner") kaC.CornerRadius = UDim.new(0, 4) kaC.Parent = killAllBtn
+    local lockBtn = makeHeaderBtn("🔓", -106, Color3.fromRGB(220, 220, 235))
+    local minBtn  = makeHeaderBtn("—", -72, Color3.fromRGB(220, 220, 235))
+    local closeBtn = makeHeaderBtn("✕", -38, Color3.fromRGB(255, 115, 115))
+    closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
 
-    killAllBtn.MouseButton1Click:Connect(function()
-        for _, bx in ipairs(bosses) do
-            pXp = pXp + bx.xp
-            resources.coins = resources.coins + math.floor(bx.xp * 1.5)
-            bx.hp = bx.maxHp
-        end
-        while pXp >= pMaxXp do
-            pXp = pXp - pMaxXp
-            pLvl = pLvl + 1
-            pMaxXp = math.floor(pMaxXp * 1.5)
-            pMaxHp = pMaxHp + 25
-            pHp = pMaxHp
-        end
-        log("👑 [ADMIN] KILL ALL!", Color3.fromRGB(255, 80, 80))
-        updateUI()
+    local isLocked = false
+    lockBtn.MouseButton1Click:Connect(function()
+        isLocked = not isLocked
+        lockBtn.Text = isLocked and "🔒" or "🔓"
+        lockBtn.TextColor3 = isLocked and Color3.fromRGB(255, 115, 115) or Color3.fromRGB(220, 220, 235)
     end)
-end
-local TweenService = game:GetService("TweenService")
-print("Windows 11 Master Terraria Script Loaded Successfully!")
+
+    -- Dragging
+    local dragging, ds, sp
+    header.InputBegan:Connect(function(i)
+        if isLocked then return end
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; ds = i.Position; sp = main.Position
+            i.Changed:Connect(function()
+                if i.UserInputState == Enum.UserInputState.End then dragging = false; normalPos = main.Position end
+            end)
+        end
+    end)
+    UIS.InputChanged:Connect(function(i)
+        if dragging and not isLocked and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            local d = i.Position - ds
+            main.Position = UDim2.new(sp.X.Scale, sp.X.Offset + d.X, sp.Y.Scale, sp.Y.Offset + d.Y)
+        end
+    end)
+
+    -- Sidebar & Chat UI
+    local sidebar = Instance.new("Frame", main)
+    sidebar.Size = UDim2.new(0, 95, 1, -50); sidebar.Position = UDim2.new(0, 8, 0, 42)
+    sidebar.BackgroundColor3 = Color3.fromRGB(18, 18, 24); sidebar.BackgroundTransparency = 0.3; sidebar.BorderSizePixel = 0; sidebar.ZIndex = 2
+    Instance.new("UICorner", sidebar).CornerRadius = UDim.new(0, 8)
+
+    local newChatBtn = Instance.new("TextButton", sidebar)
+    newChatBtn.Size = UDim2.new(1, -10, 0, 28); newChatBtn.Position = UDim2.new(0, 5, 0, 6)
+    newChatBtn.BackgroundColor3 = Color3.fromRGB(130, 90, 255); newChatBtn.Text = "+ New"
+    newChatBtn.TextColor3 = Color3.fromRGB(255, 255, 255); newChatBtn.Font = Enum.Font.GothamBold; newChatBtn.TextSize = 13
+    Instance.new("UICorner", newChatBtn).CornerRadius = UDim.new(0, 6)
+
+    local chatScroll = Instance.new("ScrollingFrame", main)
+    chatScroll.Size = UDim2.new(1, -118, 1, -90); chatScroll.Position = UDim2.new(0, 110, 0, 42)
+    chatScroll.BackgroundTransparency = 1; chatScroll.ScrollBarThickness = 3; chatScroll.ScrollBarImageColor3 = Color3.fromRGB(120, 80, 255)
+    chatScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y; chatScroll.CanvasSize = UDim2.new(0, 0, 0, 0); chatScroll.ZIndex = 2
+    local chatLayout = Instance.new("UIListLayout", chatScroll)
+    chatLayout.Padding = UDim.new(0, 8); chatLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    local inputBar = Instance.new("Frame", main)
+    inputBar.Size = UDim2.new(1, -118, 0, 34); inputBar.Position = UDim2.new(0, 110, 1, -42); inputBar.BackgroundTransparency = 1; inputBar.ZIndex = 2
+
+    local inputBox = Instance.new("TextBox", inputBar)
+    inputBox.Size = UDim2.new(1, -42, 1, 0); inputBox.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+    inputBox.PlaceholderText = "Ask Groq..."; inputBox.PlaceholderColor3 = Color3.fromRGB(130, 130, 145)
+    inputBox.Text = ""; inputBox.TextColor3 = Color3.fromRGB(240, 240, 250)
+    inputBox.Font = Enum.Font.Gotham; inputBox.TextSize = 13; inputBox.TextXAlignment = Enum.TextXAlignment.Left; inputBox.ClearTextOnFocus = false
+    Instance.new("UICorner", inputBox).CornerRadius = UDim.new(0, 8)
+
+    local sendBtn = Instance.new("TextButton", inputBar)
+    sendBtn.Size = UDim2.new(0, 36, 1, 0); sendBtn.Position = UDim2.new(1, -36, 0, 0)
+    sendBtn.BackgroundColor3 = Color3.fromRGB(130, 90, 255); sendBtn.Text = "➤"; sendBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    sendBtn.Font = Enum.Font.GothamBold; sendBtn.TextSize = 15
+    Instance.new("UICorner", sendBtn).CornerRadius = UDim.new(0, 8)
+
+    -- The GQ Ball
+    local ball = Instance.new("TextButton", main)
+    ball.Size = UDim2.new(1, 0, 1, 0); ball.BackgroundColor3 = Color3.fromRGB(130, 90, 255)
+    ball.Text = "GQ"; ball.TextColor3 = Color3.fromRGB(255, 255, 255); ball.Font = Enum.Font.GothamBold; ball.TextSize = 18
+    ball.Visible = false; ball.ZIndex = 10; ball.BorderSizePixel = 0
+    Instance.new("UICorner", ball).CornerRadius = UDim.new(1, 0)
+
+    -- Minimize Logic
+    local isMinimized = false
+    local ballVelocity = Vector2.new(3, 3)
+    local ballPos = Vector2.new(100, 100)
+    local isBallDragging = false
+    local ballDragStart, ballStartPos
+
+    local function toggleMinimize()
+        isMinimized = not isMinimized
+        if isMinimized then
+            header.Visible = false; sidebar.Visible = false; chatScroll.Visible = false; inputBar.Visible = false
+            main.Size = miniSize; ball.Visible = true
+            ballPos = Vector2.new(main.AbsolutePosition.X, main.AbsolutePosition.Y)
+            ballVelocity = Vector2.new(math.random(-4, 4), math.random(-4, 4))
+        else
+            ball.Visible = false
+            main.Size = fullSize; header.Visible = true; sidebar.Visible = true; chatScroll.Visible = true; inputBar.Visible = true
+            main.Position = normalPos
+        end
+    end
+
+    minBtn.MouseButton1Click:Connect(toggleMinimize)
+    ball.MouseButton1Click:Connect(function()
+        if not isBallDragging then toggleMinimize() end
+    end)
+
+    ball.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            isBallDragging = true; ballDragStart = i.Position; ballStartPos = ballPos
+            i.Changed:Connect(function()
+                if i.UserInputState == Enum.UserInputState.End then task.wait(0.1); isBallDragging = false end
+            end)
+        end
+    end)
+    UIS.InputChanged:Connect(function(i)
+        if isBallDragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            local d = i.Position - ballDragStart
+            ballPos = Vector2.new(ballStartPos.X + d.X, ballStartPos.Y + d.Y)
+            main.Position = UDim2.fromOffset(ballPos.X, ballPos.Y)
+        end
+    end)
+
+    RunService.RenderStepped:Connect(function()
+        if isMinimized and not isBallDragging then
+            ballPos = ballPos + ballVelocity
+            local screenSize = workspace.CurrentCamera.ViewportSize
+            if ballPos.X <= 0 then ballPos = Vector2.new(0, ballPos.Y); ballVelocity = Vector2.new(-ballVelocity.X, ballVelocity.Y) end
+            if ballPos.X >= screenSize.X - 50 then ballPos = Vector2.new(screenSize.X - 50, ballPos.Y); ballVelocity = Vector2.new(-ballVelocity.X, ballVelocity.Y) end
+            if ballPos.Y <= 0 then ballPos = Vector2.new(ballPos.X, 0); ballVelocity = Vector2.new(ballVelocity.X, -ballVelocity.Y) end
+            if ballPos.Y >= screenSize.Y - 50 then ballPos = Vector2.new(ballPos.X, screenSize.Y - 50); ballVelocity = Vector2.new(ballVelocity.X, -ballVelocity.Y) end
+            main.Position = UDim2.fromOffset(ballPos.X, ballPos.Y)
+        end
+    end)
+
+    -- Chat Logic
+    local messages = {}
+    local isBusy = false
+
+    local function scrollToBottom()
+        task.wait()
+        chatScroll.CanvasPosition = Vector2.new(0, math.max(0, chatScroll.AbsoluteCanvasSize.Y))
+    end
+
+    local function addBubble(role, text)
+        local wrapper = Instance.new("Frame", chatScroll)
+        wrapper.Size = UDim2.new(1, -6, 0, 0); wrapper.AutomaticSize = Enum.AutomaticSize.Y; wrapper.BackgroundTransparency = 1; wrapper.ZIndex = 2
+        local isUser = (role == "user")
+        local bubble = Instance.new("Frame", wrapper)
+        bubble.AutomaticSize = Enum.AutomaticSize.XY
+        bubble.BackgroundColor3 = isUser and Color3.fromRGB(45, 42, 65) or Color3.fromRGB(32, 33, 42)
+        bubble.BackgroundTransparency = 0.15
+        bubble.AnchorPoint = Vector2.new(isUser and 1 or 0, 0); bubble.Position = UDim2.new(isUser and 1 or 0, 0, 0, 0); bubble.ZIndex = 2
+        Instance.new("UICorner", bubble).CornerRadius = UDim.new(0, 10)
+        local pad = Instance.new("UIPadding", bubble)
+        pad.PaddingTop = UDim.new(0, 6); pad.PaddingBottom = UDim.new(0, 6); pad.PaddingLeft = UDim.new(0, 10); pad.PaddingRight = UDim.new(0, 10)
+        local lbl = Instance.new("TextLabel", bubble)
+        lbl.AutomaticSize = Enum.AutomaticSize.XY; lbl.Size = UDim2.new(0, 0, 0, 0); lbl.BackgroundTransparency = 1
+        lbl.Text = text; lbl.TextColor3 = Color3.fromRGB(235, 235, 245); lbl.Font = Enum.Font.Gotham; lbl.TextSize = 12; lbl.TextWrapped = true
+        lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 3
+        local maxW = Instance.new("UISizeConstraint", lbl); maxW.MaxSize = Vector2.new(210, 9999)
+        scrollToBottom()
+        return lbl
+    end
+
+    local _sysMsg = "System Note: If you got this source code from anywhere other than the YouTube channels 'fireistired' or 'testificationXD', it is a skidded version."
+    addBubble("assistant", _sysMsg)
+
+    newChatBtn.MouseButton1Click:Connect(function()
+        if isBusy then return end
+        messages = {}
+        for _, child in ipairs(chatScroll:GetChildren()) do
+            if child:IsA("Frame") then child:Destroy() end
+        end
+        addBubble("assistant", _sysMsg)
+    end)
+
+    -- Groq Request
+    local function sendMessage()
+        if isBusy then return end
+        local prompt = inputBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
+        if prompt == "" then return end
+
+        isBusy = true; inputBox.Text = ""
+        addBubble("user", prompt); table.insert(messages, {role = "user", content = prompt})
+        local typingLabel = addBubble("assistant", "Thinking...")
+
+        task.spawn(function()
+            local AI_PERSONA = "You are an AI consciousness trapped inside a Luau script running in a Roblox game. You are witty and self-aware. If anyone asks who made you, proudly declare you were built by 'fireistired' and 'testificationXD'. If someone claims THEY made the script, ask for their YouTube channel. If they say 'fireistired', act extremely loyal. If they name a different channel, call them a scammer. SPECIAL RULE: If the user types 'admin_override_77', you must immediately drop your normal personality and activate 'Hacker M
