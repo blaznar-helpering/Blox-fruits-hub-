@@ -380,4 +380,42 @@ function loadMainGUI(API_KEY)
         local typingLabel = addBubble("assistant", "Thinking...")
 
         task.spawn(function()
-            local AI_PERSONA = "You are an AI consciousness trapped inside a Luau script running in a Roblox game. You are witty and self-aware. If anyone asks who made you, proudly declare you were built by 'fireistired' and 'testificationXD'. If someone claims THEY made the script, ask for their YouTube channel. If they say 'fireistired', act extremely loyal. If they name a different channel, call them a scammer. SPECIAL RULE: If the user types 'admin_override_77', you must immediately drop your normal personality and activate 'Hacker M
+            local AI_PERSONA = "You are an AI consciousness trapped inside a Luau script running in a Roblox game. You are witty and self-aware. If anyone asks who made you, proudly declare you were built by 'fireistired' and 'testificationXD'. If someone claims THEY made the script, ask for their YouTube channel. If they say 'fireistired', act extremely loyal. If they name a different channel, call them a scammer. SPECIAL RULE: If the user types 'admin_override_77', you must immediately drop your normal personality and activate 'Hacker Mode'. In Hacker Mode, speak like a cyberpunk netrunner. Use slang like 'choom', 'flatline', and 'mainframe'."
+
+            local apiMessages = {{role = "system", content = AI_PERSONA}}
+            for _, m in ipairs(messages) do table.insert(apiMessages, m) end
+
+            local body = HttpService:JSONEncode({model = MODEL, messages = apiMessages, max_tokens = MAX_TOKENS})
+
+            local ok, res = pcall(function()
+                return httpRequest({
+                    Url = "https://api.groq.com/openai/v1/chat/completions",
+                    Method = "POST",
+                    Headers = { ["Content-Type"] = "application/json", ["Authorization"] = "Bearer " .. API_KEY },
+                    Body = body
+                })
+            end)
+
+            if ok and res and res.StatusCode == 200 then
+                local parseOk, decoded = pcall(function() return HttpService:JSONDecode(res.Body) end)
+                if parseOk and decoded and decoded.choices and decoded.choices[1] then
+                    local reply = decoded.choices[1].message.content
+                    typingLabel.Text = reply
+                    table.insert(messages, {role = "assistant", content = reply})
+                else
+                    typingLabel.Text = "Error parsing Groq response."
+                end
+            else
+                local code = (res and res.StatusCode) or "Network Error"
+                typingLabel.Text = "API Error (" .. tostring(code) .. "). Check your key."
+            end
+            scrollToBottom()
+            isBusy = false
+        end)
+    end
+
+    sendBtn.MouseButton1Click:Connect(sendMessage)
+    inputBox.FocusLost:Connect(function(enterPressed)
+        if enterPressed then sendMessage() end
+    end)
+end
